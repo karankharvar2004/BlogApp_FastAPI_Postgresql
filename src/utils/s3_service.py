@@ -1,0 +1,78 @@
+import aioboto3
+
+from fastapi import HTTPException
+
+from src.database.config import (
+    AWS_ACCESS_KEY_ID,
+    AWS_SECRET_ACCESS_KEY,
+    AWS_BUCKET_NAME,
+    AWS_REGION
+)
+
+
+session = aioboto3.Session()
+
+
+async def upload_image_to_s3(
+    file_name: str,
+    file_bytes: bytes,
+    content_type: str = "image/jpeg"
+):
+
+    try:
+
+        async with session.client(
+            service_name="s3",
+            region_name=AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+        ) as s3_client:
+
+            await s3_client.put_object(
+                Bucket=AWS_BUCKET_NAME,
+                Key=file_name,
+                Body=file_bytes,
+                ContentType=content_type
+            )
+
+        image_url = (
+            f"https://{AWS_BUCKET_NAME}.s3."
+            f"{AWS_REGION}.amazonaws.com/{file_name}"
+        )
+
+        return image_url
+
+    except Exception as error:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"S3 Upload Failed: {str(error)}"
+        )
+    
+
+async def delete_image_from_s3(
+    image_url: str
+):
+
+    try:
+
+        file_name = image_url.split("/")[-1]
+
+        async with session.client(
+            service_name="s3",
+            region_name=AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+        ) as s3_client:
+
+            await s3_client.delete_object(
+                Bucket=AWS_BUCKET_NAME,
+                Key=file_name
+            )
+
+    except Exception as error:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"S3 Delete Failed: {str(error)}"
+        )
