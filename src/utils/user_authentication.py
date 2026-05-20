@@ -12,11 +12,11 @@ from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from src.database.config import (
-    SECRET_KEY,
-    JWT_ALGORITHM,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    REFRESH_TOKEN_EXPIRE_DAYS
+from src.database.config import Config; (
+    Config.SECRET_KEY,
+    Config.JWT_ALGORITHM,
+    Config.ACCESS_TOKEN_EXPIRE_MINUTES,
+    Config.REFRESH_TOKEN_EXPIRE_DAYS
 )
 
 from src.database.db_config import get_db
@@ -33,14 +33,14 @@ def create_access_token(user_id: int):
         "user_id": user_id,
         "type": "access",
         "exp": datetime.utcnow() + timedelta(
-            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+            minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES
         )
     }
 
     token = jwt.encode(
         payload,
-        SECRET_KEY,
-        algorithm=JWT_ALGORITHM
+        Config.SECRET_KEY,
+        algorithm=Config.JWT_ALGORITHM
     )
 
     return token
@@ -52,14 +52,14 @@ def create_refresh_token(user_id: int):
         "user_id": user_id,
         "type": "refresh",
         "exp": datetime.utcnow() + timedelta(
-            days=REFRESH_TOKEN_EXPIRE_DAYS
+            days=Config.REFRESH_TOKEN_EXPIRE_DAYS
         )
     }
 
     token = jwt.encode(
         payload,
-        SECRET_KEY,
-        algorithm=JWT_ALGORITHM
+        Config.SECRET_KEY,
+        algorithm=Config.JWT_ALGORITHM
     )
 
     return token
@@ -74,8 +74,8 @@ async def get_current_user(
 
         payload = jwt.decode(
             token.credentials,
-            SECRET_KEY,
-            algorithms=[JWT_ALGORITHM]
+            Config.SECRET_KEY,
+            algorithms=[Config.JWT_ALGORITHM]
         )
 
         if payload.get("type") != "access":

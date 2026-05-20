@@ -3,33 +3,17 @@ from fastapi import (
     Depends
 )
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.database.db_config import get_db
-
-from src.services.blogs.schema import (
-    CreateBlogSchema,
-    UpdateBlogSchema
+from src.services.blogs.serializer import (
+    CreateBlogSerializer,
+    UpdateBlogSerializer
 )
 
 from src.services.blogs.controller import (
-    create_blog,
-    get_all_blogs,
-    get_single_blog,
-    update_blog,
-    delete_blog
-)
-
-from src.services.blogs.serializer import (
-    BlogResponseSerializer
+    BlogController
 )
 
 from src.utils.user_authentication import (
     get_current_user
-)
-
-from src.utils.response import (
-    success_response
 )
 
 
@@ -41,112 +25,53 @@ router = APIRouter(
 
 @router.post("/")
 async def create_new_blog(
-    payload: CreateBlogSchema,
-    current_user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: CreateBlogSerializer,
+    current_user=Depends(get_current_user)
 ):
 
-    blog = await create_blog(
-        payload,
-        current_user,
-        db
-    )
-
-    serialized_blog = (
-        BlogResponseSerializer
-        .model_validate(blog)
-        .model_dump()
-    )
-
-    return success_response(
-        message="Blog created successfully",
-        data=serialized_blog
+    return await BlogController.create_blog(
+        request=request,
+        current_user=current_user
     )
 
 
 @router.get("/")
-async def fetch_all_blogs(
-    db: AsyncSession = Depends(get_db)
-):
+async def fetch_all_blogs():
 
-    blogs = await get_all_blogs(db)
-
-    serialized_blogs = [
-        BlogResponseSerializer
-        .model_validate(blog)
-        .model_dump()
-        for blog in blogs
-    ]
-
-    return success_response(
-        message="Blogs fetched successfully",
-        data=serialized_blogs
-    )
+    return await BlogController.get_all_blogs()
 
 
 @router.get("/{blog_id}")
 async def fetch_single_blog(
-    blog_id: int,
-    db: AsyncSession = Depends(get_db)
+    blog_id: int
 ):
 
-    blog = await get_single_blog(
-        blog_id,
-        db
-    )
-
-    serialized_blog = (
-        BlogResponseSerializer
-        .model_validate(blog)
-        .model_dump()
-    )
-
-    return success_response(
-        message="Blog fetched successfully",
-        data=serialized_blog
+    return await BlogController.get_single_blog(
+        blog_id=blog_id
     )
 
 
 @router.patch("/{blog_id}")
 async def partial_update_blog(
     blog_id: int,
-    payload: UpdateBlogSchema,
-    current_user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: UpdateBlogSerializer,
+    current_user=Depends(get_current_user)
 ):
 
-    blog = await update_blog(
-        blog_id,
-        payload,
-        current_user,
-        db
-    )
-
-    serialized_blog = (
-        BlogResponseSerializer
-        .model_validate(blog)
-        .model_dump()
-    )
-
-    return success_response(
-        message="Blog updated successfully",
-        data=serialized_blog
+    return await BlogController.update_blog(
+        blog_id=blog_id,
+        request=request,
+        current_user=current_user
     )
 
 
 @router.delete("/{blog_id}")
 async def remove_blog(
     blog_id: int,
-    current_user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user=Depends(get_current_user)
 ):
 
-    await delete_blog(
-        blog_id,
-        current_user,
-        db
-    )
-
-    return success_response(
-        message="Blog deleted successfully"
+    return await BlogController.delete_blog(
+        blog_id=blog_id,
+        current_user=current_user
     )

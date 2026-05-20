@@ -2,11 +2,11 @@ import aioboto3
 
 from fastapi import HTTPException
 
-from src.database.config import (
-    AWS_ACCESS_KEY_ID,
-    AWS_SECRET_ACCESS_KEY,
-    AWS_BUCKET_NAME,
-    AWS_REGION
+from src.database.config import Config; (
+    Config.AWS_ACCESS_KEY_ID,
+    Config.AWS_SECRET_ACCESS_KEY,
+    Config.AWS_BUCKET_NAME,
+    Config.AWS_REGION
 )
 
 
@@ -23,21 +23,21 @@ async def upload_image_to_s3(
 
         async with session.client(
             service_name="s3",
-            region_name=AWS_REGION,
-            aws_access_key_id=AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+            region_name=Config.AWS_REGION,
+            aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY
         ) as s3_client:
 
             await s3_client.put_object(
-                Bucket=AWS_BUCKET_NAME,
+                Bucket=Config.AWS_BUCKET_NAME,
                 Key=file_name,
                 Body=file_bytes,
                 ContentType=content_type
             )
 
         image_url = (
-            f"https://{AWS_BUCKET_NAME}.s3."
-            f"{AWS_REGION}.amazonaws.com/{file_name}"
+            f"https://{Config.AWS_BUCKET_NAME}.s3."
+            f"{Config.AWS_REGION}.amazonaws.com/{file_name}"
         )
 
         return image_url
@@ -60,13 +60,13 @@ async def delete_image_from_s3(
 
         async with session.client(
             service_name="s3",
-            region_name=AWS_REGION,
-            aws_access_key_id=AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+            region_name=Config.AWS_REGION,
+            aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY
         ) as s3_client:
 
             await s3_client.delete_object(
-                Bucket=AWS_BUCKET_NAME,
+                Bucket=Config.AWS_BUCKET_NAME,
                 Key=file_name
             )
 

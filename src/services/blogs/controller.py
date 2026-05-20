@@ -1,11 +1,10 @@
-from datetime import datetime
+from fastapi import status
 
-from fastapi import HTTPException
+from src.services.blogs.schema import BlogSchema
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
-from src.database.models import Blog
+from src.services.blogs.serializer import (
+    BlogResponseSerializer
+)
 
 from src.utils.helper_functions import (
     decode_base64_image
@@ -16,120 +15,179 @@ from src.utils.s3_service import (
     delete_image_from_s3
 )
 
+from src.utils.response import (
+    success_response,
+    error_response
+)
 
-async def create_blog(
-    payload,
-    current_user,
-    db: AsyncSession
-):
 
-    image_url = None
+class BlogController:
 
-    if payload.image_base64:
+    @classmethod
+    async def create_blog(
+        cls,
+        request,
+        current_user
+    ):
 
-        image_data = decode_base64_image(
-            payload.image_base64
-        )
+        image_url = None
 
-        image_url = await upload_image_to_s3(
-            file_name=image_data["file_name"],
-            file_bytes=image_data["file_bytes"]
+        if request.image_base64:
+
+            image_data = decode_base64_image(
+                request.image_base64
             )
-    
-    new_blog = Blog(
-        title=payload.title,
-        content=payload.content,
-        image_url=image_url,
-        owner_id=current_user.id
-    )
 
-    db.add(new_blog)
+            image_url = await upload_image_to_s3(
+                file_name=image_data["file_name"],
+                file_bytes=image_data["file_bytes"]
+            )
 
-    await db.commit()
-
-    await db.refresh(new_blog)
-
-    return new_blog
-
-
-async def get_all_blogs(
-    db: AsyncSession
-):
-
-    query = select(Blog).where(
-        Blog.is_deleted == False
-    )
-
-    result = await db.execute(query)
-
-    blogs = result.scalars().all()
-
-    return blogs
-
-
-async def get_single_blog(
-    blog_id: int,
-    db: AsyncSession
-):
-
-    query = select(Blog).where(
-        Blog.id == blog_id,
-        Blog.is_deleted == False
-    )
-
-    result = await db.execute(query)
-
-    blog = result.scalar_one_or_none()
-
-    if not blog:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Blog not found"
+        blog = await BlogSchema.create_blog(
+            request=request,
+            current_user=current_user,
+            image_url=image_url
         )
 
-    return blog
-
-
-async def update_blog(
-    blog_id: int,
-    payload,
-    current_user,
-    db: AsyncSession
-):
-
-    query = select(Blog).where(
-        Blog.id == blog_id,
-        Blog.is_deleted == False
-    )
-
-    result = await db.execute(query)
-
-    blog = result.scalar_one_or_none()
-
-    if not blog:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Blog not found"
+        response_data = BlogResponseSerializer.model_validate(
+            blog
         )
 
-    if blog.owner_id != current_user.id:
-
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized"
+        return success_response(
+            message="Blog created successfully",
+            data=response_data.model_dump(),
+            status_code=status.HTTP_201_CREATED
         )
 
-    if payload.title is not None:
+    @classmethod
+    async def get_all_blogs(
+        cls
+    ):
 
-        blog.title = payload.title
+        blogs = await BlogSchema.get_blog_data()
 
-    if payload.content is not None:
+        response_data = [
+            BlogResponseSerializer
+            .model_validate(blog)
+            .model_dump()
+            for blog in blogs
+        ]
 
-        blog.content = payload.content
+        return success_response(
+            message="Blogs fetched successfully",
+            data=response_data
+        )
 
-    if payload.image_base64 is not None:
+    @classmethod
+    async def get_single_blog(
+        cls,
+        blog_id
+    ):
+
+        blog = await BlogSchema.get_blog_data(
+            blog_id=blog_id
+        )
+
+        if not blog:
+
+            return error_response(
+                message="Blog not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        response_data = BlogResponseSerializer.model_validate(
+            blog
+        )
+
+        return success_response(
+            message="Blog fetched successfully",
+            data=response_data.model_dump()
+        )
+
+    @classmethod
+    async def update_blog(
+        cls,
+        blog_id,
+        request,
+        current_user
+    ):
+
+        blog = await BlogSchema.get_blog_data(
+            blog_id=blog_id
+        )
+
+        if not blog:
+
+            return error_response(
+                message="Blog not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        if blog.owner_id != current_user.id:
+
+            return error_response(
+                message="Not authorized",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+
+        image_url = blog.image_url
+
+        if request.image_base64 is not None:
+
+            if blog.image_url:
+
+                await delete_image_from_s3(
+                    blog.image_url
+                )
+
+            image_data = decode_base64_image(
+                request.image_base64
+            )
+
+            image_url = await upload_image_to_s3(
+                file_name=image_data["file_name"],
+                file_bytes=image_data["file_bytes"]
+            )
+
+        updated_blog = await BlogSchema.update_blog(
+            blog=blog,
+            request=request,
+            image_url=image_url
+        )
+
+        response_data = BlogResponseSerializer.model_validate(
+            updated_blog
+        )
+
+        return success_response(
+            message="Blog updated successfully",
+            data=response_data.model_dump()
+        )
+
+    @classmethod
+    async def delete_blog(
+        cls,
+        blog_id,
+        current_user
+    ):
+
+        blog = await BlogSchema.get_blog_data(
+            blog_id=blog_id
+        )
+
+        if not blog:
+
+            return error_response(
+                message="Blog not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        if blog.owner_id != current_user.id:
+
+            return error_response(
+                message="Not authorized",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
 
         if blog.image_url:
 
@@ -137,63 +195,10 @@ async def update_blog(
                 blog.image_url
             )
 
-        image_data = decode_base64_image(
-            payload.image_base64
+        await BlogSchema.soft_delete_blog(
+            blog
         )
 
-        blog.image_url = await upload_image_to_s3(
-            file_name=image_data["file_name"],
-            file_bytes=image_data["file_bytes"]
+        return success_response(
+            message="Blog deleted successfully"
         )
-
-    blog.updated_at = datetime.utcnow()
-
-    await db.commit()
-
-    await db.refresh(blog)
-
-    return blog
-
-
-async def delete_blog(
-    blog_id: int,
-    current_user,
-    db: AsyncSession
-):
-
-    query = select(Blog).where(
-        Blog.id == blog_id,
-        Blog.is_deleted == False
-    )
-
-    result = await db.execute(query)
-
-    blog = result.scalar_one_or_none()
-
-    if not blog:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Blog not found"
-        )
-
-    if blog.owner_id != current_user.id:
-
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized"
-        )
-    
-    if blog.image_url:
-
-        await delete_image_from_s3(
-            blog.image_url
-        )
-
-    blog.is_deleted = True
-
-    blog.deleted_at = datetime.utcnow()
-
-    await db.commit()
-
-    return True

@@ -1,9 +1,11 @@
-from fastapi import HTTPException
+from fastapi import status
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from src.services.users.schema import UserSchema
 
-from src.database.models import User
+from src.services.users.serializer import (
+    UserResponseSerializer,
+    UserProfileSerializer
+)
 
 from src.utils.helper_functions import (
     hash_password,
@@ -15,75 +17,110 @@ from src.utils.user_authentication import (
     create_refresh_token
 )
 
-
-async def register_user(
-    payload,
-    db: AsyncSession
-):
-
-    query = select(User).where(
-        User.email == payload.email
-    )
-
-    result = await db.execute(query)
-
-    existing_user = result.scalar_one_or_none()
-
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Email already exists"
-        )
-
-    new_user = User(
-        username=payload.username,
-        email=payload.email,
-        password=hash_password(payload.password)
-    )
-
-    db.add(new_user)
-
-    await db.commit()
-
-    await db.refresh(new_user)
-
-    return new_user
+from src.utils.response import (
+    success_response,
+    error_response
+)
 
 
-async def login_user(
-    payload,
-    db: AsyncSession
-):
+class UserController:
 
-    query = select(User).where(
-        User.email == payload.email
-    )
-
-    result = await db.execute(query)
-
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid credentials"
-        )
-
-    if not verify_password(
-        payload.password,
-        user.password
+    @classmethod
+    async def register_user(
+        cls,
+        request
     ):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid credentials"
+
+        existing_user = await UserSchema.get_user_data(
+            email=request.email
         )
 
-    access_token = create_access_token(user.id)
+        if existing_user:
 
-    refresh_token = create_refresh_token(user.id)
+            return error_response(
+                message="Email already exists",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+        request.password = hash_password(
+            request.password
+        )
+
+        user = await UserSchema.create_user(
+            request=request
+        )
+
+        response_data = UserProfileSerializer.model_validate(
+            user
+        )
+
+        return success_response(
+            message="User registered successfully",
+            data=response_data.model_dump(),
+            status_code=status.HTTP_201_CREATED
+        )
+
+    @classmethod
+    async def login_user(
+        cls,
+        request
+    ):
+
+        user = await UserSchema.get_user_data(
+            email=request.email
+        )
+
+        if not user:
+
+            return error_response(
+                message="Invalid credentials",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        valid_password = verify_password(
+            request.password,
+            user.password
+        )
+
+        if not valid_password:
+
+            return error_response(
+                message="Invalid credentials",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        access_token = create_access_token(
+            user.id
+        )
+
+        refresh_token = create_refresh_token(
+            user.id
+        )
+
+        response_data = UserResponseSerializer(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            access_token=access_token,
+            refresh_token=refresh_token
+        )
+
+        return success_response(
+            message="Login successful",
+            data=response_data.model_dump()
+        )
+
+    @classmethod
+    async def get_profile(
+        cls,
+        current_user
+    ):
+
+        response_data = UserProfileSerializer.model_validate(
+            current_user
+        )
+
+        return success_response(
+            message="User profile fetched",
+            data=response_data.model_dump()
+        )

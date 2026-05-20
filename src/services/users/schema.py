@@ -1,62 +1,56 @@
-from typing import Annotated
+from sqlalchemy import select
 
-from pydantic import (
-    BaseModel,
-    EmailStr,
-    Field,
-    ConfigDict
-)
+from src.database.models import User
+from src.database.db_config import db
 
 
-UsernameField = Annotated[
-    str,
-    Field(
-        min_length=3,
-        max_length=50,
-        examples=["karan"]
-    )
-]
+class UserSchema:
 
+    @classmethod
+    async def get_user_data(
+        cls,
+        user_id=None,
+        email=None
+    ):
 
-EmailField = Annotated[
-    EmailStr,
-    Field(
-        examples=["karan@gmail.com"]
-    )
-]
+        query = select(User)
 
+        if user_id:
 
-PasswordField = Annotated[
-    str,
-    Field(
-        min_length=6,
-        max_length=100,
-        examples=["strongpassword123"]
-    )
-]
+            query = query.where(
+                User.id == user_id
+            )
 
+        if email:
 
-class UserRegisterSchema(BaseModel):
+            query = query.where(
+                User.email == email
+            )
 
-    model_config = ConfigDict(
-        extra="forbid",
-        from_attributes=True
-    )
+        result = await db.execute(query)
 
-    username: UsernameField
+        if user_id or email:
 
-    email: EmailField
+            return result.scalar_one_or_none()
 
-    password: PasswordField
+        return result.scalars().all()
 
+    @classmethod
+    async def create_user(
+        cls,
+        request
+    ):
 
-class UserLoginSchema(BaseModel):
+        new_user = User(
+            username=request.username,
+            email=request.email,
+            password=request.password
+        )
 
-    model_config = ConfigDict(
-        extra="forbid",
-        from_attributes=True
-    )
+        db.add(new_user)
 
-    email: EmailField
+        await db.commit()
 
-    password: PasswordField
+        await db.refresh(new_user)
+
+        return new_user

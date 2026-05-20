@@ -5,25 +5,17 @@ from fastapi import (
 
 from fastapi.security import HTTPBearer
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 import jwt
 
-from src.database.db_config import get_db
+from src.database.config import Config
 
-from src.database.config import (
-    SECRET_KEY,
-    JWT_ALGORITHM
+from src.services.users.serializer import (
+    UserRegisterSerializer,
+    UserLoginSerializer
 )
 
 from src.services.users.controller import (
-    register_user,
-    login_user
-)
-
-from src.services.users.schema import (
-    UserRegisterSchema,
-    UserLoginSchema
+    UserController
 )
 
 from src.utils.user_authentication import (
@@ -48,39 +40,21 @@ security = HTTPBearer()
 
 @router.post("/register")
 async def register(
-    payload: UserRegisterSchema,
-    db: AsyncSession = Depends(get_db)
+    request: UserRegisterSerializer
 ):
 
-    user = await register_user(
-        payload,
-        db
-    )
-
-    return success_response(
-        message="User registered successfully",
-        data={
-            "id": user.id,
-            "email": user.email
-        },
-        status_code=201
+    return await UserController.register_user(
+        request=request
     )
 
 
 @router.post("/login")
 async def login(
-    payload: UserLoginSchema,
-    db: AsyncSession = Depends(get_db)
+    request: UserLoginSerializer
 ):
 
-    token = await login_user(
-        payload,
-        db
-    )
-
-    return success_response(
-        message="Login successful",
-        data=token
+    return await UserController.login_user(
+        request=request
     )
 
 
@@ -93,8 +67,8 @@ async def refresh_token(
 
         payload = jwt.decode(
             token.credentials,
-            SECRET_KEY,
-            algorithms=[JWT_ALGORITHM]
+            Config.SECRET_KEY,
+            algorithms=[Config.JWT_ALGORITHM]
         )
 
         if payload.get("type") != "refresh":
@@ -130,11 +104,6 @@ async def get_profile(
     current_user=Depends(get_current_user)
 ):
 
-    return success_response(
-        message="User profile fetched",
-        data={
-            "id": current_user.id,
-            "username": current_user.username,
-            "email": current_user.email
-        }
+    return await UserController.get_profile(
+        current_user=current_user
     )

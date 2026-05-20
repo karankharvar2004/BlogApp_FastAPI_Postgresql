@@ -7,66 +7,37 @@ from pydantic import (
 )
 
 
-class CreateBlogSchema(BaseModel):
+TitleField = Annotated[str, Field(min_length=3, max_length=255, examples=["My First Blog"])]
 
-    title: Annotated[
-        str,
-        Field(
-            min_length=3,
-            max_length=255
-        )
-    ]
+ContentField = Annotated[str, Field(min_length=10, examples=["This is my blog content"])]
 
-    content: Annotated[
-        str,
-        Field(
-            min_length=3
-        )
-    ]
-
-    image_base64: Annotated[
-        str | None,
-        Field(default=None)
-    ]
+Base64ImageField = Annotated[str | None,Field(default=None, examples=["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."])]
 
 
-class UpdateBlogSchema(BaseModel):
+class CreateBlogSerializer(BaseModel):
 
-    title: Annotated[
-        str | None,
-        Field(
-            default=None,
-            min_length=3,
-            max_length=255
-        )
-    ]
+    model_config = ConfigDict(extra="forbid",from_attributes=True)
 
-    content: Annotated[
-        str | None,
-        Field(
-            default=None,
-            min_length=3
-        )
-    ]
+    title: TitleField
+    content: ContentField
+    image_base64: Base64ImageField = None
 
-    image_base64: Annotated[
-        str | None,
-        Field(default=None)
-    ]
+
+class UpdateBlogSerializer(BaseModel):
+
+    model_config = ConfigDict(extra="forbid", from_attributes=True)
+
+    title: Annotated[str | None, Field(min_length=3, max_length=255, default=None)] = None
+    content: Annotated[str | None, Field(min_length=10, default=None)] = None
+    image_base64: Base64ImageField = None
 
 
 class BlogResponseSerializer(BaseModel):
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
-
     title: str
-
     content: str
-
     image_url: str | None
-
     owner_id: int
-
-    model_config = ConfigDict(
-        from_attributes=True
-    )
