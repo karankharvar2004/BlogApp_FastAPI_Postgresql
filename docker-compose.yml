@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:16
+    container_name: blogapp_db
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 7006
+      POSTGRES_DB: Blog_CompanyArc_DB
+
+    ports:
+      - "5555:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: blogapp_app
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      - db
+
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:

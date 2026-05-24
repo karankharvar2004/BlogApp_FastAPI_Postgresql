@@ -5,13 +5,20 @@ from sqlalchemy import pool
 
 from src.database.db_config import Base
 
-from src.database.models import User
+from src.database.models import User, Blog
 
 from alembic import context
+
+import os
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+config.set_main_option(
+    "sqlalchemy.url",
+    "postgresql://postgres:7006@db:5432/Blog_CompanyArc_DB"
+)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
