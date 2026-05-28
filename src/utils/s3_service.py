@@ -6,7 +6,8 @@ from src.database.config import Config; (
     Config.AWS_ACCESS_KEY_ID,
     Config.AWS_SECRET_ACCESS_KEY,
     Config.AWS_BUCKET_NAME,
-    Config.AWS_REGION
+    Config.AWS_REGION,
+    Config.CLOUDFRONT_URL
 )
 
 
@@ -36,8 +37,7 @@ async def upload_image_to_s3(
             )
 
         image_url = (
-            f"https://{Config.AWS_BUCKET_NAME}.s3."
-            f"{Config.AWS_REGION}.amazonaws.com/{file_name}"
+            f"{Config.CLOUDFRONT_URL}/{file_name}"
         )
 
         return image_url
@@ -48,7 +48,7 @@ async def upload_image_to_s3(
             status_code=500,
             detail=f"S3 Upload Failed: {str(error)}"
         )
-    
+
 
 async def delete_image_from_s3(
     image_url: str
@@ -56,7 +56,7 @@ async def delete_image_from_s3(
 
     try:
 
-        file_name = image_url.split("/")[-1]
+        file_name = image_url.split("/", 3)[-1]
 
         async with session.client(
             service_name="s3",

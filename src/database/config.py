@@ -24,6 +24,7 @@ class Config:
     AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
     AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
     AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
+    CLOUDFRONT_URL = os.getenv("CLOUDFRONT_URL")
 
 class Settings(BaseModel):
 
