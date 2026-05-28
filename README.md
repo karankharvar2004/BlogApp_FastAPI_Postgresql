@@ -276,25 +276,6 @@ http://localhost:8000/docs
 
 ---
 
-# Future Improvements
-
-- Role-based authentication
-- Redis caching
-- CI/CD pipeline
-- Kubernetes deployment
-- Unit testing
-- API rate limiting
-- Signed CloudFront URLs
-- Background task queues
-
----
-
 # Author
 
 Karan Kharvar
-
----
-
-# License
-
-This project is for learning and development purposes.
